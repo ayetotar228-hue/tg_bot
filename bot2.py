@@ -739,6 +739,14 @@ async def process_age(message: Message, state: FSMContext):
 
     await save_basic_form(message.from_user.id, data['name'], data['referrer'], data['age'])
 
+    from_event_registration = data.get("from_event_registration", False)
+
+    if from_event_registration:
+        await message.answer("✅ Анкета сохранена! Теперь уточним пару деталей для мероприятия.")
+        await message.answer("Укажи свой пол:\n\nМ — мужчина\nЖ — женщина")
+        await state.set_state(FormEvent.gender)
+        return
+
     username = f"@{message.from_user.username}" if message.from_user.username else "нет"
     summary = (
         f"📝 <b>Новая заявка в канал!</b>\n\n"
@@ -765,44 +773,77 @@ async def process_age(message: Message, state: FSMContext):
 @dp.message(Command("start"))
 async def cmd_start(message: Message, command: CommandObject, state: FSMContext):
     user_id = message.from_user.id
+    if command.args == "event_registration":
+        if not await is_subscribed(user_id):
+            await message.answer(
+                "❌ <b>Ты не подписан на канал GPC!</b>\n\n"
+                "Эта ссылка только для участников клуба. Сначала вступи в канал.",
+                parse_mode="HTML"
+            )
+            return
 
-    if not command.args or command.args != "event_registration":
-        await message.answer("Привет! Я бот GPC. Подай заявку на вступление в канал, чтобы начать.")
-        return
+        await add_user(user_id, message.from_user.username or "нет", message.from_user.full_name or "не указано")
+
+        user_data = await get_user_data(user_id)
+
+        if not user_data or user_data["status"] == "pending":
+            await state.update_data(from_event_registration=True)
+            await message.answer(
+                "Привет! 👋\n\n"
+                "Чтобы зарегистрироваться на мероприятие, нужно сначала заполнить небольшую анкету.\n\n"
+                "Подскажи, как тебя зовут? (имя фамилия)"
+            )
+            await state.set_state(FormBasic.name)
+            return
+
+        elif user_data["status"] == "filled":
+            await message.answer(
+                f"Привет, {user_data['form_name']}! 👋\n\n"
+                f"Для завершения регистрации на мероприятие нужно уточнить пару деталей."
+            )
+            await message.answer("Укажи свой пол:\n\nМ — мужчина\nЖ — женщина")
+            await state.set_state(FormEvent.gender)
+            return
+
+        elif user_data["status"] == "waiting_payment":
+            await message.answer(
+                f"⏳ <b>Ты уже зарегистрирован!</b>\n\n"
+                f"Ожидай подтверждения оплаты.\n"
+                f"💰 Твоя цена: <b>{user_data['final_price']} ₽</b>",
+                parse_mode="HTML"
+            )
+            return
+
+        elif user_data["status"] == "paid":
+            await message.answer("✅ Твоя оплата уже подтверждена! Добро пожаловать на мероприятие.")
+            return
+
+    await add_user(user_id, message.from_user.username or "нет", message.from_user.full_name or "не указано")
 
     if not await is_subscribed(user_id):
         await message.answer(
-            "❌ <b>Ты не подписан на канал GPC!</b>\n\n"
-            "Эта ссылка только для участников клуба. Сначала вступи в канал.",
-            parse_mode="HTML"
+            "Привет! Я бот GPC 👋\n\n"
+            "Чтобы начать, подпишись на наш канал, затем напиши /start снова."
         )
         return
 
-    user_data = await get_user_data(user_id)
+    user_status = await get_user_status(user_id)
 
-    if not user_data or user_data["status"] == "pending":
-        await message.answer("⚠️ Ты еще не заполнил анкету для вступления. Сделай это сначала.")
-        return
-
-    elif user_data["status"] == "waiting_payment":
+    if user_status in ["filled", "waiting_payment", "paid"]:
         await message.answer(
-            f"⏳ <b>Ты уже зарегистрирован!</b>\n\n"
-            f"Ожидай подтверждения оплаты.\n"
-            f"💰 Твоя цена: <b>{user_data['final_price']} ₽</b>",
+            "✅ <b>Ты уже заполнял анкету!</b>\n\n"
+            "Если хочешь зарегистрироваться на мероприятие — "
+            "перейди по специальной ссылке в закрепе канала.",
             parse_mode="HTML"
         )
-        return
-
-    elif user_data["status"] == "paid":
-        await message.answer("✅ Твоя оплата уже подтверждена! Добро пожаловать на мероприятие.")
         return
 
     await message.answer(
-        f"Привет, {user_data['form_name']}! 👋\n\n"
-        f"Для завершения регистрации на мероприятие нужно уточнить пару деталей."
+        "Привет! Увидели тебя в канале GPC 👋\n\n"
+        "Давай заполним небольшую анкету.\n\n"
+        "Подскажи, как тебя зовут? (имя фамилия)"
     )
-    await message.answer("Укажи свой пол:\n\nМ — мужчина\nЖ — женщина")
-    await state.set_state(FormEvent.gender)
+    await state.set_state(FormBasic.name)
 
 
 @dp.message(FormEvent.gender)
