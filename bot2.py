@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 import aiosqlite
 import random
 import string
@@ -719,6 +720,8 @@ async def process_referrer(message: Message, state: FSMContext):
     if not message.text or not message.text.strip():
         await message.answer("Пожалуйста, отправь ответ текстовым сообщением 🙂")
         return
+    
+    referrer_text = message.text.strip()
 
     if not re.match(r"^@?[a-zA-Zа-яА-ЯёЁ0-9\s_-]+$", referrer_text):
         await message.answer(
