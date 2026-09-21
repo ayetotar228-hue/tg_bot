@@ -702,6 +702,13 @@ async def process_name(message: Message, state: FSMContext):
         await message.answer("Пожалуйста, отправь ответ текстовым сообщением 🙂")
         return
 
+    if not re.match(r"^[a-zA-Zа-яА-ЯёЁ0-9\s-]+$", message.text):
+        await message.answer(
+            "⚠️ В имени нельзя использовать специальные символы (знаки препинания, смайлики и т.д.). "
+            "Пожалуйста, введи имя заново!"
+        )
+        return
+
     await state.update_data(name=message.text.strip())
     await message.answer("От кого ты узнал про GPC? (имя фамилия или ник в тг)")
     await state.set_state(FormBasic.referrer)
@@ -711,6 +718,13 @@ async def process_name(message: Message, state: FSMContext):
 async def process_referrer(message: Message, state: FSMContext):
     if not message.text or not message.text.strip():
         await message.answer("Пожалуйста, отправь ответ текстовым сообщением 🙂")
+        return
+
+    if not re.match(r"^@?[a-zA-Zа-яА-ЯёЁ0-9\s_-]+$", referrer_text):
+        await message.answer(
+            "⚠️ Пожалуйста, не используй лишние спецсимволы и эмодзи. "
+            "Введи имя и фамилию человека или его Telegram-никнейм (например, @username)!"
+        )
         return
 
     await state.update_data(referrer=message.text.strip())
@@ -888,6 +902,14 @@ async def process_event_referral(message: Message, state: FSMContext):
     used_code = None
 
     if code_input.lower() not in ("нет", "нету", "no", "-"):
+
+        if not re.match(r"^[a-zA-Z0-9]{4,12}$", code_input):
+            await message.answer(
+                "⚠️ Некорректный формат кода. Реферальный код состоит только из "
+                "английских букв и цифр. Попробуй ещё раз или напиши «нет»."
+            )
+            return
+
         success, result, referrer_id = await use_referral_code(referred_id=user_id, code=code_input)
         if success:
             used_code = code_input.upper()
@@ -920,7 +942,8 @@ async def process_event_referral(message: Message, state: FSMContext):
             f"💰 <b>Твоя цена билета:</b> {final_price} ₽\n"
             f"🔑 <b>Твой реферальный код:</b> <code>{own_code}</code>\n\n"
             f"Передай этот код друзьям и получи скидку 50 ₽ за каждого оплатившего!\n"
-            f"<i>Максимальная скидка: 250 ₽ (5 друзей)</i>\n\n"
+            f"<i>Максимальная скидка: 250 ₽ (5 друзей)</i>\n"
+	    f"💵 <a href='https://t.tb.ru/c2c-qr-choose-bank?requisiteNumber=+79835287902&bankCode=100000000'><b>Оплати</b></a> (Т-Банк) и скинь фотографию перевода администратору @Garage_Podval_Cherdak\n\n"
             f"⏳ <i>Ожидай подтверждения оплаты администратором.</i>",
             parse_mode="HTML"
         )
@@ -929,6 +952,7 @@ async def process_event_referral(message: Message, state: FSMContext):
             f"✅ <b>Регистрация завершена!</b>\n\n"
             f"💰 <b>Твоя цена билета:</b> {final_price} ₽\n"
             f"🎁 Скидка по реферальному коду: <b>-100 ₽</b>\n\n"
+	    f"💵 <a href='https://t.tb.ru/c2c-qr-choose-bank?requisiteNumber=+79835287902&bankCode=100000000'><b>Оплати</b></a> (Т-Банк) и скинь фотографию перевода администратору @Garage_Podval_Cherdak\n\n"
             f"⏳ <i>Ожидай подтверждения оплаты администратором.</i>",
             parse_mode="HTML"
         )
