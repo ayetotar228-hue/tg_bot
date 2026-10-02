@@ -1,4 +1,4 @@
-import asyncio
+Цimport asyncio
 import logging
 import os
 import re
@@ -62,8 +62,8 @@ async def init_db():
                 form_referrer TEXT,
                 form_age TEXT,
                 gender TEXT,
-                base_price INTEGER DEFAULT 650,
-                final_price INTEGER DEFAULT 650,
+                base_price INTEGER DEFAULT 750,
+                final_price INTEGER DEFAULT 750,
                 used_referral_code TEXT,
                 admin_message_id INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -94,7 +94,7 @@ async def init_db():
         """)
 
         migrations = [
-            "ALTER TABLE users ADD COLUMN final_price INTEGER DEFAULT 650",
+            "ALTER TABLE users ADD COLUMN final_price INTEGER DEFAULT 750",
             "ALTER TABLE users ADD COLUMN used_referral_code TEXT",
             "ALTER TABLE users ADD COLUMN admin_message_id INTEGER",
         ]
@@ -397,7 +397,7 @@ async def recalculate_referrer_price(referrer_id: int) -> tuple[int, int]:
 
         cursor = await db.execute("SELECT base_price FROM users WHERE user_id = ?", (referrer_id,))
         base_row = await cursor.fetchone()
-        base_price = base_row[0] if base_row and base_row[0] else 650
+        base_price = base_row[0] if base_row and base_row[0] else 750
 
         new_price = max(0, base_price - discount)
 
@@ -434,13 +434,9 @@ async def confirm_payment_by_username(username: str) -> tuple[bool, str]:
         await db.execute(
             "UPDATE users SET status = 'paid', updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
             (user_id,)
-        )
+	)
 
-sqlite> UPDATE users
-SET
-    status = 'paid',
-    updated_at = CURRENT_TIMESTAMP
-WHERE tg_username = 'dfwywtb';        cursor = await db.execute("SELECT referrer_id FROM referrals WHERE referred_id = ?", (user_id,))
+        cursor = await db.execute("SELECT referrer_id FROM referrals WHERE referred_id = ?", (user_id,))
         ref_row = await cursor.fetchone()
         referrer_id = ref_row[0] if ref_row else None
 
@@ -881,18 +877,13 @@ async def process_event_gender(message: Message, state: FSMContext):
 
     if gender in ("м", "мужчина"):
         gender = "male"
-        base_price = 650
+        base_price = 750
     else:
         gender = "female"
-        base_price = 550
+        base_price = 650
 
     await state.update_data(gender=gender, base_price=base_price)
-    await message.answer(
-        "Если тебя пригласил кто-то из участников GPC — отправь его реферальный код.\n\n"
-        "Если тебя никто не приглашал — напиши «нет»."
-    )
-    await state.set_state(FormEvent.referral_code)
-
+    
 
 @dp.message(FormEvent.referral_code)
 async def process_event_referral(message: Message, state: FSMContext):
@@ -947,9 +938,6 @@ async def process_event_referral(message: Message, state: FSMContext):
         await message.answer(
             f"✅ <b>Регистрация завершена!</b>\n\n"
             f"💰 <b>Твоя цена билета:</b> {final_price} ₽\n"
-            f"🔑 <b>Твой реферальный код:</b> <code>{own_code}</code>\n\n"
-            f"Передай этот код друзьям и получи скидку 50 ₽ за каждого оплатившего!\n"
-            f"<i>Максимальная скидка: 250 ₽ (5 друзей)</i>\n"
 	    f"💵 <a href='https://t.tb.ru/c2c-qr-choose-bank?requisiteNumber=+79835287902&bankCode=100000000'><b>Оплати</b></a> (Т-Банк) и скинь фотографию перевода администратору @Garage_Podval_Cherdak\n\n"
             f"⏳ <i>Ожидай подтверждения оплаты администратором.</i>",
             parse_mode="HTML"
@@ -958,7 +946,6 @@ async def process_event_referral(message: Message, state: FSMContext):
         await message.answer(
             f"✅ <b>Регистрация завершена!</b>\n\n"
             f"💰 <b>Твоя цена билета:</b> {final_price} ₽\n"
-            f"🎁 Скидка по реферальному коду: <b>-100 ₽</b>\n\n"
 	    f"💵 <a href='https://t.tb.ru/c2c-qr-choose-bank?requisiteNumber=+79835287902&bankCode=100000000'><b>Оплати</b></a> (Т-Банк) и скинь фотографию перевода администратору @Garage_Podval_Cherdak\n\n"
             f"⏳ <i>Ожидай подтверждения оплаты администратором.</i>",
             parse_mode="HTML"
@@ -1047,7 +1034,7 @@ async def cmd_codes(message: Message):
             f"📱 {username_text}\n"
             f"🆔 <code>{user_id}</code>\n"
             f"👥 Использовали: <b>{referral_count}</b>\n"
-            f"💰 Цена: <b>{final_price or 650} ₽</b> (база: {base_price or 650} ₽)\n"
+            f"💰 Цена: <b>{final_price or 750} ₽</b> (база: {base_price or 750} ₽)\n"
         )
     
     await message.answer(
